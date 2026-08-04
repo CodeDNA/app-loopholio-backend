@@ -1,0 +1,8 @@
+.zshrcexport
+__pycache__/
+*.pyc
+.vscode/
+/backups
+.env
+venv
+chroma_db/
