@@ -2,7 +2,6 @@ import os
 os.environ["TORCH_COMPILE_DISABLE"] = "1"
 os.environ["TORCHINDUCTOR_DISABLE"] = "1"
 
-import asyncio
 import json
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
@@ -10,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated, Optional
 from app.services.file_parser import parse_and_chunk_file
 from app.services.vector_store import store_chunks_in_db
-from app.services.agent_pipeline import run_agent_pipeline
-
+from app.agent.tos_graph import build_tos_graph
+from app.agent.tos_agent_states import initial_graph_state
 
 app = FastAPI(title="Terms Of Service Risk Analyzer")
 
@@ -36,7 +35,7 @@ async def parse_document(
     async def event_generator():
         try:
             # 1. Step: Document parsing and chunking
-            yield json.dumps({"status": "processing", "message": "Starting document parsing and chunking..."}) + "\n"
+            yield f"data: {json.dumps({'status': 'processing', 'message': 'Starting document parsing and chunking...'})}\n"
 
             chunks = []
             if tosText and tosText:
@@ -50,30 +49,62 @@ async def parse_document(
                     totalChunks = store_chunks_in_db(chunks, file.filename)
                     print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
                 except Exception as e:
+                    yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n"
                     raise HTTPException(
                         status_code=500, 
                         detail=f"Processing Error | Something went wrong: {str(e)}"
                     )
             else:
-                yield json.dumps({"status": "error", "message": "No text or file provided."}) + "\n"
+                yield f"data: {json.dumps({'status': 'error', 'message': 'No text or file provided.'})}\n"
                 return
 
-            yield json.dumps({"status": "processing", "message": "Executing legal risk analysis agent pipeline..."}) + "\n"
-            final_report = await run_agent_pipeline(chunks)
-            print("* * * * * final_report * * * * *")
-            print(final_report)
+            yield f"data: {json.dumps({'status': 'processing', 'message': 'Executing legal risk analysis agent pipeline...'})}\n"
 
-            final_report_data = final_report.get("report", [])
-            yield json.dumps({
+            final_report_data = []
+            graph = build_tos_graph()
+            initial_state = initial_graph_state
+            initial_state["sections"] = chunks
+
+            async for event in graph.astream(initial_state, stream_mode="updates"):
+                for node_name, node_output in event.items():
+                    if node_name == "clause_extraction":
+                        yield f"data: {json.dumps({"status": "processing", "message": "Clauses extracted successfully. Analyzing risks..."})}\n"
+                    elif node_name == "risk_detection":
+                        # print("..")
+                        yield f"data: {json.dumps({"status": "processing", "message": "Analyzing Risks..."})}\n"
+                    elif node_name == "explainer":
+                        yield f"data: {json.dumps({"status": "processing", "message": "Risks analyzed. Generating explanations..."})}\n"
+                    elif node_name == "report_generator":
+                        print('Preparing Final Report')
+                        final_report_data = node_output.get("final_report", [])
+
+            yield f'data: {json.dumps({
                 "status": "success",
                 "message": "Analysis complete!",
-                "report": final_report_data  # This should evaluate to your list of risk objects
-            }) + "\n"
+                "report": final_report_data  
+            })}\n'
+
+            # Stream each risk item individually to match front end contract
+            for risk in final_report_data:
+                yield f"data: {json.dumps({'type': 'risk_item', 'content': risk})}\n"
+
+            yield f"data: {json.dumps({'type': 'done'})}\n"
+            print('****** FINISHED *******')
+
         except Exception as e:
             print(f"Error during pipeline execution: {str(e)}")
-            yield json.dumps({
+            yield f'data: {json.dumps({
                 "status": "error", 
                 "message": f"Processing Error | Something went wrong: {str(e)}"
-            }) + "\n"
+            })}\n'
 
-    return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+    return StreamingResponse(
+        event_generator(), 
+        # media_type="application/x-ndjson",
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
