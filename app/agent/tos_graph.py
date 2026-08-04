@@ -22,7 +22,8 @@ async def clause_extraction_node(state: dict) -> ToSAgentState:
     return {
         "extracted_clauses": [{
             "title": section_title,
-            "clause": extracted_clause.content
+            "clause": extracted_clause.content,
+            "root_clause": section_context,
         }]
     }
 
@@ -35,6 +36,7 @@ async def risk_detection_node(state: dict) -> ToSAgentState:
     extracted_clause = state["clause"]
     clause_title = extracted_clause.get("title", "General")
     clause_content = extracted_clause.get("clause", "")
+    root_clause = extracted_clause.get("root_clause", "")
 
     systemMessage = risk_detection_instruction.format(title=clause_title,context=clause_content)
     detected_risk = await llm.ainvoke([SystemMessage(content=systemMessage)])
@@ -42,7 +44,8 @@ async def risk_detection_node(state: dict) -> ToSAgentState:
         "risk_analysis": [{
             "title": clause_title,
             "clause": clause_content,
-            "risk_assessment": detected_risk.content
+            "risk_assessment": detected_risk.content,
+            "root_clause": root_clause
         }]
     }
 
@@ -55,6 +58,7 @@ async def explanation_node(state: dict) -> ToSAgentState:
     risk_analysis = state.get("detected_risk", [])
     risk_title = risk_analysis.get("title", "General")
     risk_assessment = risk_analysis.get("risk_assessment", "")
+    root_clause = risk_analysis.get("root_clause", "")
     
     # Enforce the strict UI schema contract at this translation step
     structured_llm = llm.with_structured_output(RiskReportItem)
@@ -68,34 +72,10 @@ async def explanation_node(state: dict) -> ToSAgentState:
     return {
         "explanations": [{
             "title": risk_title,
-            "data": structured_data
+            "data": structured_data,
+            "root_clause": root_clause
         }]
     }
-
-'''
-# # --- Agent 2 & 3: Combined Risk Detection & Explainer using Structured Output ---
-def risk_and_explanation_node(state: ToSAgentState) -> ToSAgentState:
-    clauses = state.get("extracted_clauses", [])
-    combined_clauses = "\n\n".join([c["clause_text"] for c in clauses])
-    
-    # Force the LLM to output an array matching your exact UI schema
-    structured_llm = llm.with_structured_output(List[RiskReportItem])
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a legal risk assessment agent. Analyze the provided clauses, assess their risk, translate legalese into plain English explanations, and provide actionable recommendations."),
-        ("human", "Extracted Clauses:\n{clauses}")
-    ])
-    
-    chain = prompt | structured_llm
-    report_items = chain.invoke({"clauses": combined_clauses})
-    
-    # Convert Pydantic models back to dictionaries for the state graph
-    serialized_report = [item.model_dump() for item in report_items]
-    
-    state["risk_analysis"] = serialized_report
-    state["plain_explanations"] = serialized_report
-    return state
-'''
 
 # --- Agent 4: Final Report Generator ---
 def report_generator_node(state: ToSAgentState) -> ToSAgentState:
@@ -112,7 +92,7 @@ def report_generator_node(state: ToSAgentState) -> ToSAgentState:
             "reason": item["data"].get("reason", "No reason provided."),
             "whyMatters": item["data"].get("whyMatters", "No explanation available."),
             "recommendation": item["data"].get("recommendation", "Review this clause carefully."),
-            "exactClause": item["data"].get("exactClause", "Clause text unavailable.")
+            "exactClause": item["root_clause"]
         })
     return {"final_report": formatted_risks}
 
@@ -134,4 +114,4 @@ def build_tos_graph():
     
     return builder.compile()
 
-tos_graph = build_tos_graph()
+# tos_graph = build_tos_graph()
