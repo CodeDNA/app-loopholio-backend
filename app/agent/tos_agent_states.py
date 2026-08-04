@@ -3,12 +3,7 @@ from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, Field
 import operator
 
-class Sections(TypedDict):
-    title: str
-    text: str
-    context: str
-
-# Shared state schema - LangGraph State
+# LangGraph State
 class ToSAgentState(TypedDict):
     # User's query
     sections: List[dict]
@@ -41,3 +36,12 @@ class RiskReportItem(TypedDict):
 
 class FinalReportSchema(BaseModel):
     risks: List[RiskReportItem]
+
+initial_graph_state = {
+    "sections": [],
+    # "retrieved_chunks": [],
+    "extracted_clauses": [],
+    "risk_analysis": [],
+    "plain_explanations": [],
+    "final_report": []
+}
