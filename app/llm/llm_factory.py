@@ -9,7 +9,7 @@ load_dotenv()
 DEFAULT_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai").lower()
 OPENAI_MODEL = os.getenv("DEFAULT_OPENAI_MODEL", "gpt-4o-mini")
 
-def get_llm(provider: str = DEFAULT_PROVIDER, temperature: float = 0.5):
+def get_llm(provider: str = DEFAULT_PROVIDER, temperature: float = 0):
     provider = provider.lower()
     
     if provider == "openai":
