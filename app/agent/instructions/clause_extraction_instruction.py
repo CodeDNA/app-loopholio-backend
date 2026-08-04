@@ -20,11 +20,14 @@ Source Context: {context}
 - **Exclusion:** Ignore purely boilerplate or introductory language unless it introduces a binding condition or definition.
 </instructions>
 
+<rules>
+YOU MUST STRICLTY AHERE TO THE FOLLOWING CONSTRAINTS:
+1. Make sure you stricly stick to the Source Context provided and do not go out of context.
+2. Make sure you keep a track of the original clause and DO NOT REPHRASE IT AT ANY COST. MAINTAIN ABSOLUTE INTEGRITY OF THE INPUT CLAUSE. Even if you are extracting clause from a part of input clause you will use the FULL TEXT of the clause as "EXACT CLAUSE" while returning the response and not partial text.
+3. Do not hallucinate - verify your answer once before responding.
+</rules>
+
 <output_format>
-Provide a structured, comprehensive breakdown of all extracted clauses categorized by their functional nature (e.g., Financial Obligations, Liabilities & Indemnities, Termination Rights, Operational Constraints). For each extracted item, clearly state the exact clause and its operational scope.
+Provide a structured, comprehensive breakdown of all extracted clauses categorized by their functional nature (e.g., Financial Obligations, Liabilities & Indemnities, Termination Rights, Operational Constraints). For each extracted item, clearly state the exact clause as per the rules and its operational scope.
 </output_format>
 """
-
-# clause_extraction_instruction = """
-# You are a legal expert AI. Isolate and extract all critical legal clauses, obligations, and risk-prone sections from the provided section - {title}. Here is the context {context}
-# """

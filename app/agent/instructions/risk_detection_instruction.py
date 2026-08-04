@@ -16,7 +16,7 @@ Clause Context: {context}
 <instructions>
 - **Risk Assessment:** Examine the text for unfavorable terms, unilateral changes, waivers, broad indemnities, or ambiguous obligations.
 - **Strict Categorization:** Classify the risk into a clear, concise category (e.g., Financial Liability, Intellectual Property, Termination, Data Privacy, Operational Constraint).
-- **Standardized Risk Level:** You must restrict the risk level strictly to one of the following exact terms: `Low`, `Medium`, or `High`. Do not use variants or descriptive combinations.
+- **Standardized Risk Level:** You must restrict the risk level strictly to one of the following exact terms: `Low`, `Medium`, or `High`. DO NOT use variants or descriptive combinations for example "Low - High" or "Moderate", etc..
 - **Confidence Scoring:** Provide a numerical confidence score reflecting your certainty in this risk evaluation.
 </instructions>
 
@@ -29,4 +29,4 @@ Return the assessment strictly structured according to the required schema, ensu
 """
 
 
-risk_detection_instruction = "You are a legal risk detection agent. Review the clause and identify potential liabilities, risk levels, and categories. Here is the title of the clause - {title} and here is the clause context {context}"
+# risk_detection_instruction = "You are a legal risk detection agent. Review the clause and identify potential liabilities, risk levels, and categories. Here is the title of the clause - {title} and here is the clause context {context}"
