@@ -35,30 +35,32 @@ async def parse_document(
     async def event_generator():
         try:
             # 1. Step: Document parsing and chunking
-            yield f"data: {json.dumps({'status': 'processing', 'message': 'Starting document parsing and chunking...'})}\n"
+            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Starting document parsing and chunking...'})}\n"
 
             chunks = []
             if tosText and tosText:
-                print("Processing raw text string...")
+                # print("Processing raw text string...")
+                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n"
                 chunks = await parse_and_chunk_file(tosText=tosText)
                 totalChunks = store_chunks_in_db(chunks, "Pasted Text")
             elif file:
-                print(f"Processing file: {file.filename}...")
+                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n"
+                # print(f"Processing file: {file.filename}...")
                 try:
                     chunks = await parse_and_chunk_file(file=file)
                     totalChunks = store_chunks_in_db(chunks, file.filename)
                     print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
                 except Exception as e:
-                    yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n"
+                    yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': str(e)})}\n"
                     raise HTTPException(
                         status_code=500, 
                         detail=f"Processing Error | Something went wrong: {str(e)}"
                     )
             else:
-                yield f"data: {json.dumps({'status': 'error', 'message': 'No text or file provided.'})}\n"
+                yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': 'No text or file provided.'})}\n"
                 return
 
-            yield f"data: {json.dumps({'status': 'processing', 'message': 'Executing legal risk analysis agent pipeline...'})}\n"
+            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Executing legal risk analysis agent pipeline.'})}\n"
 
             final_report_data = []
             graph = build_tos_graph()
@@ -68,32 +70,26 @@ async def parse_document(
             async for event in graph.astream(initial_state, stream_mode="updates"):
                 for node_name, node_output in event.items():
                     if node_name == "clause_extraction":
-                        yield f"data: {json.dumps({"status": "processing", "message": "Clauses extracted successfully. Analyzing risks..."})}\n"
+                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Clauses extracted successfully!"})}\n"
                     elif node_name == "risk_detection":
-                        # print("..")
-                        yield f"data: {json.dumps({"status": "processing", "message": "Analyzing Risks..."})}\n"
+                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Analyzing Risks..."})}\n"
                     elif node_name == "explainer":
-                        yield f"data: {json.dumps({"status": "processing", "message": "Risks analyzed. Generating explanations..."})}\n"
+                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Generating simplified explanations..."})}\n"
                     elif node_name == "report_generator":
                         print('Preparing Final Report')
+                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Generating Final Report..."})}\n"
                         final_report_data = node_output.get("final_report", [])
-
-            yield f'data: {json.dumps({
-                "status": "success",
-                "message": "Analysis complete!",
-                "report": final_report_data  
-            })}\n'
 
             # Stream each risk item individually to match front end contract
             for risk in final_report_data:
                 yield f"data: {json.dumps({'type': 'risk_item', 'content': risk})}\n"
 
             yield f"data: {json.dumps({'type': 'done'})}\n"
-            print('****** FINISHED *******')
 
         except Exception as e:
             print(f"Error during pipeline execution: {str(e)}")
             yield f'data: {json.dumps({
+                'type': 'status',
                 "status": "error", 
                 "message": f"Processing Error | Something went wrong: {str(e)}"
             })}\n'

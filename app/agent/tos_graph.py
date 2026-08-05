@@ -114,4 +114,5 @@ def build_tos_graph():
     
     return builder.compile()
 
-# tos_graph = build_tos_graph()
+# Keeeping it here for now to use with LangGraph Studio compilation
+# graph = build_tos_graph()
