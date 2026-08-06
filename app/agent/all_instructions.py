@@ -10,9 +10,3 @@ risk_detection_instruction = risk_detection_instruction
 explanation_instruction = explanation_instruction
 
 final_report_generator_instruction = final_report_generator_instruction
-
-
-# prompt = ChatPromptTemplate.from_messages([
-    #     ("system", "You are an explainer agent. Translate the technical risk assessments and legalese into plain English explanations, provide recommendations, and extract exact verbatim clauses."),
-    #     ("human", "Risk Analysis Findings:\n{risk_data}")
-    # ])
