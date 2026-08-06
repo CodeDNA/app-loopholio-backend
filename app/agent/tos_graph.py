@@ -1,104 +1,194 @@
+import json
 from langgraph.graph import StateGraph, START, END
-from langchain_core.messages import SystemMessage
-from app.agent.tos_agent_states import ToSAgentState, RiskReportItem
+from langchain_core.messages import SystemMessage, HumanMessage
+from app.agent.tos_agent_states import (
+    ToSAgentState,
+    DetectedRisks,
+    ClauseExtractionOutput,
+    ExplainedRisk,
+)
 from langgraph.types import Send
 from app.llm.llm_factory import get_llm
-from app.agent.all_instructions import clause_extraction_instruction, risk_detection_instruction, explanation_instruction
+from app.agent.all_instructions import (
+    clause_extraction_instruction,
+    risk_detection_instruction,
+    explanation_instruction,
+)
 
 llm = get_llm()
 
 def route_to_clause_extraction(state: ToSAgentState):
-    return [Send("clause_extraction", {"section": sec}) for sec in state["sections"]]
+    return [
+        Send("clause_extraction", {"section": section}) for section in state["sections"]
+    ]
 
-# --- Agent 1: Clause Extraction ---
+# - - - Agent 1: Clause Extraction Agent - - -
 async def clause_extraction_node(state: dict) -> ToSAgentState:
     section = state["section"]
-    section_title = section.get("title", "General")
-    section_context = section.get("context", "")
+    section_title = section["section_title"]
+    section_text = section["section_text"]
+    chunk_id = section["chunk_id"]
 
-    systemMessage = clause_extraction_instruction.format(title=section_title, context=section_context)
-    extracted_clause = await llm.ainvoke([SystemMessage(content=systemMessage)])
-    
+    clause_extraction_llm_input = {
+        "section_title": section_title,
+        "section_text": section_text,
+    }
+
+    structured_llm = llm.with_structured_output(ClauseExtractionOutput)
+
+    extracted_clauses = await structured_llm.ainvoke(
+        [
+            SystemMessage(content=clause_extraction_instruction),
+            HumanMessage(
+                content=json.dumps(
+                    clause_extraction_llm_input, ensure_ascii=False, indent=2
+                )
+            ),
+        ]
+    )
+
     return {
-        "extracted_clauses": [{
-            "title": section_title,
-            "clause": extracted_clause.content,
-            "root_clause": section_context,
-        }]
+        "extracted_clauses": [
+            {
+                "chunk_id": chunk_id,
+                "clause_id": f"{chunk_id}_{index+1}",
+                "clause_type": clause.clause_type,
+                "clause_text": clause.clause_text,
+                "section_title": section_title,
+                "source_text": section_text,
+            }
+            for index, clause in enumerate(extracted_clauses.clauses)
+        ]
     }
 
 def route_to_risk_detection(state: ToSAgentState):
     # Map over the extracted clauses produced by the previous parallel step
-    return [Send("risk_detection", {"clause": clause}) for clause in state["extracted_clauses"]]
+    return [
+        Send("risk_detection", {"clause": clause})
+        for clause in state["extracted_clauses"]
+    ]
 
-# --- Agent 2: Risk Detection ---
+# - - - Agent 2: Risk Detection - - -
 async def risk_detection_node(state: dict) -> ToSAgentState:
-    extracted_clause = state["clause"]
-    clause_title = extracted_clause.get("title", "General")
-    clause_content = extracted_clause.get("clause", "")
-    root_clause = extracted_clause.get("root_clause", "")
+    clause_to_analyze = state["clause"]
+    section_title = clause_to_analyze["section_title"]
+    clause_text = clause_to_analyze["clause_text"]
+    clause_type = clause_to_analyze["clause_type"]
+    source_text = clause_to_analyze["source_text"]
+    clause_id = clause_to_analyze["clause_id"]
+    chunk_id = clause_to_analyze["chunk_id"]
 
-    systemMessage = risk_detection_instruction.format(title=clause_title,context=clause_content)
-    detected_risk = await llm.ainvoke([SystemMessage(content=systemMessage)])
-    return {
-        "risk_analysis": [{
-            "title": clause_title,
-            "clause": clause_content,
-            "risk_assessment": detected_risk.content,
-            "root_clause": root_clause
-        }]
+    structured_llm = llm.with_structured_output(DetectedRisks)
+
+    risk_detection_llm_input = {
+        "section_title": section_title,
+        "clause_type": clause_type,
+        "clause_text": clause_text,
+        "source_text": source_text,
     }
+
+    detected_risk = await structured_llm.ainvoke(
+        [
+            SystemMessage(content=risk_detection_instruction),
+            HumanMessage(
+                content=json.dumps(
+                    risk_detection_llm_input, ensure_ascii=False, indent=2
+                )
+            ),
+        ]
+    )
+
+    if detected_risk.risk_found:
+        return {
+            "detected_risks": [
+                {
+                    "section_title": section_title,
+                    "clause_id": clause_id,
+                    "chunk_id": chunk_id,
+                    "clause_text": clause_text,
+                    "level": detected_risk.level,
+                    "confidence": detected_risk.confidence,
+                    "category": detected_risk.category,
+                    "reason": detected_risk.reason,
+                    "evidence": detected_risk.evidence,
+                    "source_text": source_text,
+                }
+            ]
+        }
+    return {"detected_risks": []}
 
 def route_to_explainer(state: ToSAgentState):
     # Fan out the risk analysis results into parallel explainer workers
-    return [Send("explainer", {"detected_risk": detected_risk}) for detected_risk in state["risk_analysis"]]
+    return [
+        Send("explainer", {"detected_risk": detected_risk})
+        for detected_risk in state["detected_risks"]
+    ]
 
-# --- Agent 3: Explainer Agent (with Citations) ---
+# - - - Agent 3: Explainer Agent (with Citations) - - -
 async def explanation_node(state: dict) -> ToSAgentState:
-    risk_analysis = state.get("detected_risk", [])
-    risk_title = risk_analysis.get("title", "General")
-    risk_assessment = risk_analysis.get("risk_assessment", "")
-    root_clause = risk_analysis.get("root_clause", "")
-    
-    # Enforce the strict UI schema contract at this translation step
-    structured_llm = llm.with_structured_output(RiskReportItem)
-    
-    system_message = explanation_instruction.format(
-        title=risk_title,
-        risk_assessment=risk_assessment
-    )
-    structured_data = await structured_llm.ainvoke([SystemMessage(content=system_message)])
+    detected_risk = state["detected_risk"]
+    chunk_id = detected_risk["chunk_id"]
+    clause_id = detected_risk["clause_id"]
+    section_title = detected_risk["section_title"]
 
-    return {
-        "explanations": [{
-            "title": risk_title,
-            "data": structured_data,
-            "root_clause": root_clause
-        }]
+    structured_llm = llm.with_structured_output(ExplainedRisk)
+    explainer_llm_input = {
+        "category": detected_risk["category"],
+        "reason": detected_risk["reason"],
+        "evidence": detected_risk["evidence"],
     }
 
-# --- Agent 4: Final Report Generator ---
+    structured_data = await structured_llm.ainvoke(
+        [
+            SystemMessage(content=explanation_instruction),
+            HumanMessage(content=json.dumps(explainer_llm_input, indent=2)),
+        ]
+    )
+
+    return {
+        "explanations": [
+            {
+                "chunk_id": chunk_id,
+                "clause_id": clause_id,
+                "section_title": section_title,
+                "category": detected_risk["category"],
+                "level": detected_risk["level"],
+                "confidence": detected_risk["confidence"],
+                "reason": detected_risk["reason"],
+                "whyMatters": structured_data.whyMatters,
+                "recommendation": structured_data.recommendation,
+                "evidence": detected_risk["evidence"],
+                "source_text": detected_risk["source_text"],
+            }
+        ]
+    }
+
+# - - - Agent 4: Final Report Generator - - -
 def report_generator_node(state: ToSAgentState) -> ToSAgentState:
     # Compiles and finalizes payload structure for the UI contract
-    explanations = state.get("explanations", [])
+    explanations = state["explanations"]
     formatted_risks = []
     for item in explanations:
-        # If your explanations are nested (e.g., inside an "explanations" sub-key), 
-        # extract the actual data dict here. Assuming 'item' is the flat dictionary:
-        formatted_risks.append({
-            "level": item["data"].get("level", "Uncategorized"),
-            "confidence": item["data"].get("confidence", 0),
-            "category": item["data"].get("category", "Uncategorized"),
-            "reason": item["data"].get("reason", "No reason provided."),
-            "whyMatters": item["data"].get("whyMatters", "No explanation available."),
-            "recommendation": item["data"].get("recommendation", "Review this clause carefully."),
-            "exactClause": item["root_clause"]
-        })
+        formatted_risks.append(
+            {
+                "chunk_id": item["chunk_id"],
+                "clause_id": item["clause_id"],
+                "section_title": item["section_title"],
+                "level": item["level"],
+                "confidence": item["confidence"],
+                "category": item["category"],
+                "reason": item["reason"],
+                "whyMatters": item["whyMatters"],
+                "recommendation": item["recommendation"],
+                "exactClause": item["evidence"],
+                "source_text": item["source_text"],
+            }
+        )
     return {"final_report": formatted_risks}
 
 def build_tos_graph():
     builder = StateGraph(ToSAgentState)
-    
+
     # Nodes
     builder.add_node("clause_extraction", clause_extraction_node)
     builder.add_node("risk_detection", risk_detection_node)
@@ -106,13 +196,18 @@ def build_tos_graph():
     builder.add_node("report_generator", report_generator_node)
 
     # Edges
-    builder.add_conditional_edges(START, route_to_clause_extraction,["clause_extraction"])
-    builder.add_conditional_edges("clause_extraction", route_to_risk_detection,["risk_detection"])
-    builder.add_conditional_edges("risk_detection", route_to_explainer,["explainer"])
+    builder.add_conditional_edges(
+        START, route_to_clause_extraction, ["clause_extraction"]
+    )
+    builder.add_conditional_edges(
+        "clause_extraction", route_to_risk_detection, ["risk_detection"]
+    )
+    builder.add_conditional_edges("risk_detection", route_to_explainer, ["explainer"])
     builder.add_edge("explainer", "report_generator")
     builder.add_edge("report_generator", END)
-    
+
     return builder.compile()
+
 
 # Keeeping it here for now to use with LangGraph Studio compilation
 # graph = build_tos_graph()
