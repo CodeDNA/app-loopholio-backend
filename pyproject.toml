@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "loopholio-backend"
+version = "0.1.0"
+description = "ToS legal risk analysis backend"
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph",
+    "fastapi",
+    "docling",
+    "uvicorn"
+]
+
+[tool.setuptools]
+packages = ["app"]
