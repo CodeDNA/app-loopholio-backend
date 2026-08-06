@@ -4,7 +4,8 @@ from docling.chunking import HybridChunker
 from fastapi import HTTPException
 import io
 
-async def parse_and_chunk_file(file = None, tosText: str="") -> list[dict]:
+
+async def parse_and_chunk_file(file=None, tosText: str = "") -> list[dict]:
     converter = DocumentConverter()
     tmp_path = None
     chunks = []
@@ -12,7 +13,9 @@ async def parse_and_chunk_file(file = None, tosText: str="") -> list[dict]:
     try:
         if not file:
             # Create a temp file to store the pasted text string
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt", mode="w", encoding="utf-8") as tmp:
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=".txt", mode="w", encoding="utf-8"
+            ) as tmp:
                 tmp.write(tosText)
                 tmp_path = tmp.name
             target_path = tmp_path
@@ -29,22 +32,25 @@ async def parse_and_chunk_file(file = None, tosText: str="") -> list[dict]:
         chunker = HybridChunker()
         chunk_iter = chunker.chunk(dl_doc=doc)
 
-        for chunk in chunk_iter:
-            headings = getattr(chunk.meta, "headings", []) if hasattr(chunk, "meta") else []
-            section_title = headings[0] if headings else "Pasted Text"
+        for index, chunk in enumerate(chunk_iter):
+
+            headings = (
+                getattr(chunk.meta, "headings", []) if hasattr(chunk, "meta") else []
+            )
+            section_title = headings[0] if headings else "User pasted text"
+            chunk_id = f"chunk_00{index}"
             chunks.append(
                 {
-                "title": section_title,
-                "text": chunk.text,
-                "context": chunker.contextualize(chunk) 
-                } 
-                )
+                    "chunk_id": chunk_id,
+                    "section_title": section_title,
+                    "section_text": chunk.text,
+                    # "section_context": chunker.contextualize(chunk),
+                    "metadata": chunk.meta,
+                }
+            )
         return chunks
     except Exception as e:
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Docling parsing error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Docling parsing error: {str(e)}")
     finally:
-        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+        if "tmp_path" in locals() and os.path.exists(tmp_path):
             os.remove(tmp_path)

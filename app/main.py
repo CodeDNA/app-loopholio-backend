@@ -1,4 +1,5 @@
 import os
+
 os.environ["TORCH_COMPILE_DISABLE"] = "1"
 os.environ["TORCHINDUCTOR_DISABLE"] = "1"
 
@@ -23,11 +24,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.post("/analyze-document")
 async def parse_document(
     file: Annotated[Optional[UploadFile], File()] = None,
-    tosText: Annotated[Optional[str], Form()] = None
-    ):
+    tosText: Annotated[Optional[str], Form()] = None,
+):
     print("******** BACKEND CALL SUCCESSFUL *********")
     print(f"Received tosText: {tosText}")
     print(f"Received file: {file.filename if file else 'None'}")
@@ -43,18 +45,23 @@ async def parse_document(
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n"
                 chunks = await parse_and_chunk_file(tosText=tosText)
                 totalChunks = store_chunks_in_db(chunks, "Pasted Text")
+                print(
+                    f"Successfully generated and stored {totalChunks} chunks in vector db."
+                )
             elif file:
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n"
                 # print(f"Processing file: {file.filename}...")
                 try:
                     chunks = await parse_and_chunk_file(file=file)
                     totalChunks = store_chunks_in_db(chunks, file.filename)
-                    print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
+                    print(
+                        f"Successfully generated and stored {totalChunks} chunks in vector db."
+                    )
                 except Exception as e:
                     yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': str(e)})}\n"
                     raise HTTPException(
-                        status_code=500, 
-                        detail=f"Processing Error | Something went wrong: {str(e)}"
+                        status_code=500,
+                        detail=f"Processing Error | Something went wrong: {str(e)}",
                     )
             else:
                 yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': 'No text or file provided.'})}\n"
@@ -76,7 +83,7 @@ async def parse_document(
                     elif node_name == "explainer":
                         yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Generating simplified explanations..."})}\n"
                     elif node_name == "report_generator":
-                        print('Preparing Final Report')
+                        print("Preparing Final Report")
                         yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Generating Final Report..."})}\n"
                         final_report_data = node_output.get("final_report", [])
 
@@ -95,12 +102,12 @@ async def parse_document(
             })}\n'
 
     return StreamingResponse(
-        event_generator(), 
+        event_generator(),
         # media_type="application/x-ndjson",
         media_type="text/event-stream",
         headers={
             "X-Accel-Buffering": "no",
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-        }
+        },
     )
