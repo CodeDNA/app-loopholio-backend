@@ -4,7 +4,15 @@ from docling.chunking import HybridChunker
 from fastapi import HTTPException
 import io
 
+'''
+## This creates chunks from the document provided by the user and saves it to the vector database -currently using ChromaDB.
+## This uses HybridChunker() from the IBM's docling API.
+## HybridChunker() chunks the document based on headings and paragraphs. I chose this so that maximum context is preserved in the chunks and the text is not sliced mid sentence.
 
+### Types of input curretly supported:
+- document: pdf, txt, docx
+- image: png, jpg, jpeg, tiff
+'''
 async def parse_and_chunk_file(file=None, tosText: str = "") -> list[dict]:
     converter = DocumentConverter()
     tmp_path = None
@@ -20,7 +28,7 @@ async def parse_and_chunk_file(file=None, tosText: str = "") -> list[dict]:
                 tmp_path = tmp.name
             target_path = tmp_path
         else:
-            suffix = os.path.splitext(file.filename)[1]
+            suffix = os.path.splitext(file.filename)[1].lower()
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 contents = await file.read()
                 tmp.write(contents)
