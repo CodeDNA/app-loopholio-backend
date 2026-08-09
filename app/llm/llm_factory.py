@@ -17,11 +17,12 @@ def get_llm(provider: str = DEFAULT_PROVIDER, temperature: float = 0):
         if not open_ai_api:
             raise ValueError("OPENAI_API_KEY not found in the environment.")
         return ChatOpenAI(
-            model=OPENAI_MODEL, 
+            model=OPENAI_MODEL,
             api_key=SecretStr(open_ai_api),
-            temperature=temperature
+            temperature=temperature,
+            max_retries=5
         )
-        
+   
     elif provider == "gemini":
         gemini_api = os.getenv("GOOGLE_API_KEY")
         if not gemini_api:
