@@ -36,20 +36,29 @@ async def parse_document(
 
     async def event_generator():
         try:
-            # 1. Step: Document parsing and chunking
-            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Starting document parsing and chunking...'})}\n"
+            ##############
+            # DUMMY ERROR FOR TESTING
+            # error = {
+            #          'message': f'Processing Error | Something went wrong',
+            #          'error': "API ERROR TEST"  # Sends "ValueError", "KeyError", etc., safely
+            # }
+            # yield f"data: {json.dumps({'type': 'error', 'message': f'Error: Something went wrong', 'error': error})}\n\n"
+            # return
+            ##############
+            
+            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Starting document parsing and chunking...'})}\n\n"
 
             chunks = []
             if tosText and tosText:
                 # print("Processing raw text string...")
-                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n"
+                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n\n"
                 chunks = await parse_and_chunk_file(tosText=tosText)
                 totalChunks = store_chunks_in_db(chunks, "Pasted Text")
                 print(
                     f"Successfully generated and stored {totalChunks} chunks in vector db."
                 )
             elif file:
-                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n"
+                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n\n"
                 # print(f"Processing file: {file.filename}...")
                 try:
                     chunks = await parse_and_chunk_file(file=file)
@@ -58,52 +67,57 @@ async def parse_document(
                         f"Successfully generated and stored {totalChunks} chunks in vector db."
                     )
                 except Exception as e:
-                    yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': str(e)})}\n"
+                    yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': str(e)})}\n\n"
                     raise HTTPException(
                         status_code=500,
                         detail=f"Processing Error | Something went wrong: {str(e)}",
                     )
             else:
-                yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': 'No text or file provided.'})}\n"
+                yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': 'No text or file provided.'})}\n\n"
                 return
 
-            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Executing legal risk analysis agent pipeline.'})}\n"
+            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Executing legal risk analysis agent pipeline.'})}\n\n"
 
             final_report_data = []
             graph = build_tos_graph()
             initial_state = initial_graph_state
             initial_state["sections"] = chunks
 
-            async for event in graph.astream(initial_state, stream_mode="updates"):
+            async for event in graph.astream(initial_state, stream_mode="updates", config={'max_concurrency': 2}):
                 for node_name, node_output in event.items():
                     if node_name == "clause_extraction":
-                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Clauses extracted successfully!"})}\n"
+                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Extracting clauses..."})}\n\n"
                     elif node_name == "risk_detection":
-                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Analyzing Risks..."})}\n"
+                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Analyzing Risks..."})}\n\n"
                     elif node_name == "explainer":
-                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Generating simplified explanations..."})}\n"
+                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Generating explanations..."})}\n\n"
                     elif node_name == "report_generator":
-                        print("Preparing Final Report")
-                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Generating Final Report..."})}\n"
+                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Preparing Report..."})}\n\n"
                         final_report_data = node_output.get("final_report", [])
 
             # Stream each risk item individually to match front end contract
-            for risk in final_report_data:
-                yield f"data: {json.dumps({'type': 'risk_item', 'content': risk})}\n"
+            if not final_report_data:
+                print(' * * * * * * * * * * NO RISK FOUND * * * * * * * * * *')
+                yield f"data: {json.dumps({'type': 'no_risks_found', 'content': None})}\n"
+            else:
+                for risk in final_report_data:
+                    print(' * * * * * * * * * * FINAL REPORT * * * * * * * * * *')
+                    yield f"data: {json.dumps({'type': 'risk_item', 'content': risk})}\n\n"
 
-            yield f"data: {json.dumps({'type': 'done'})}\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
         except Exception as e:
-            print(f"Error during pipeline execution: {str(e)}")
-            yield f'data: {json.dumps({
-                'type': 'status',
-                "status": "error", 
-                "message": f"Processing Error | Something went wrong: {str(e)}"
-            })}\n'
+            error_payload = {
+                'message': f'Processing Error | Something went wrong: {str(e)}',
+                'error': type(e).__name__  #"ValueError", "KeyError", etc., safely
+            }
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | Something went wrong: {str(e)}', 'error': 
+            error_payload})}\n\n"
+            return
+            
 
     return StreamingResponse(
         event_generator(),
-        # media_type="application/x-ndjson",
         media_type="text/event-stream",
         headers={
             "X-Accel-Buffering": "no",
