@@ -12,7 +12,7 @@ from app.services.file_parser import parse_and_chunk_file
 ### from app.services.vector_store import store_chunks_in_db
 from app.agent.tos_graph import build_tos_graph
 from app.agent.tos_agent_states import initial_graph_state
-from app.constants.constants import MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_ERROR, MIN_REQUIRED_TEXT_LENGTH, MIN_REQUIRED_TEXT_LENGTH_ERROR, MAX_ALLOWED_TEXT_LENGTH, MAX_ALLOWED_TEXT_LENGTH_ERROR
+from app.constants.constants import MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_ERROR, MIN_REQUIRED_TEXT_LENGTH, MIN_REQUIRED_TEXT_LENGTH_ERROR, MAX_ALLOWED_TEXT_LENGTH, MAX_ALLOWED_TEXT_LENGTH_ERROR, MAX_SECTIONS_ALLOWED_PER_DOCUMENT
 
 app = FastAPI(title="Terms Of Service Risk Analyzer")
 
@@ -69,6 +69,13 @@ async def parse_document(
 
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n\n"
                 chunks = await parse_and_chunk_file(tosText=tosText)
+                if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
+                    error_payload = {
+                                    'message': f'Too many sections present in the provided document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}',
+                                    'error': f"Too many sections in the document ({len(chunks)})"
+                    }
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | Too many sections/pages in the document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}', 'error': error_payload})}\n\n"
+                    return
                 ### totalChunks = store_chunks_in_db(chunks, "Pasted Text")
                 ### print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
             elif file:
@@ -83,6 +90,13 @@ async def parse_document(
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n\n"
                 try:
                     chunks = await parse_and_chunk_file(file=file)
+                    if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
+                        error_payload = {
+                                        'message': f'Too many sections present in the provided document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}',
+                                        'error': f"Too many sections in the document ({len(chunks)})"
+                        }
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | Too many sections/pages in the document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}', 'error': error_payload})}\n\n"
+                        return
                     ### totalChunks = store_chunks_in_db(chunks, file.filename)
                     ### print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
                 except Exception as e:

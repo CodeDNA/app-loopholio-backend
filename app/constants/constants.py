@@ -8,3 +8,5 @@ MAX_ALLOWED_TEXT_LENGTH = 50000
 MAX_FILE_SIZE_ERROR = f'Max file size exceeded! File must be smaller than {MAX_FILE_SIZE_MB} Mb'
 MIN_REQUIRED_TEXT_LENGTH_ERROR = f'Input text length must be at least {MIN_REQUIRED_TEXT_LENGTH} characters'
 MAX_ALLOWED_TEXT_LENGTH_ERROR = f'Input text length must be less than {MAX_ALLOWED_TEXT_LENGTH} characters'
+
+MAX_SECTIONS_ALLOWED_PER_DOCUMENT = 25 # max chunk limit: to prevent too many llm calls during fanouts
