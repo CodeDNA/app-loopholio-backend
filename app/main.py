@@ -25,6 +25,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+'''
+API for health monitoring
+'''
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+'''
+Api to analyze document. It parses the document and performs chunking.
+The chunks are then send to the agent graph for risk analysis.
+
+Input
+It can take either a document file or a text.
+
+Output:
+It retuns a list of dictionary - list of potential risk items present in the legal document.
+'''
 @app.post("/analyze-document")
 async def parse_document(
     file: Annotated[Optional[UploadFile], File()] = None,
