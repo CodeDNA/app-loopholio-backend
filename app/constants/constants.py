@@ -1,0 +1,10 @@
+# CONSTANTS
+
+MAX_FILE_SIZE_MB = 5
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+MIN_REQUIRED_TEXT_LENGTH = 100
+MAX_ALLOWED_TEXT_LENGTH = 50000
+
+MAX_FILE_SIZE_ERROR = f'Max file size exceeded! File must be smaller than {MAX_FILE_SIZE_MB} Mb'
+MIN_REQUIRED_TEXT_LENGTH_ERROR = f'Input text length must be at least {MIN_REQUIRED_TEXT_LENGTH} characters'
+MAX_ALLOWED_TEXT_LENGTH_ERROR = f'Input text length must be less than {MAX_ALLOWED_TEXT_LENGTH} characters'

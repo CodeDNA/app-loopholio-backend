@@ -12,6 +12,7 @@ from app.services.file_parser import parse_and_chunk_file
 ### from app.services.vector_store import store_chunks_in_db
 from app.agent.tos_graph import build_tos_graph
 from app.agent.tos_agent_states import initial_graph_state
+from app.constants.constants import MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_ERROR, MIN_REQUIRED_TEXT_LENGTH, MIN_REQUIRED_TEXT_LENGTH_ERROR, MAX_ALLOWED_TEXT_LENGTH, MAX_ALLOWED_TEXT_LENGTH_ERROR
 
 app = FastAPI(title="Terms Of Service Risk Analyzer")
 
@@ -24,13 +25,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.post("/analyze-document")
 async def parse_document(
     file: Annotated[Optional[UploadFile], File()] = None,
     tosText: Annotated[Optional[str], Form()] = None,
 ):
-    print("******** BACKEND CALL SUCCESSFUL *********")
     print(f"Received tosText: {tosText}")
     print(f"Received file: {file.filename if file else 'None'}")
 
@@ -51,13 +50,37 @@ async def parse_document(
             chunks = []
             if tosText and tosText:
                 # print("Processing raw text string...")
+                if len(tosText) < MIN_REQUIRED_TEXT_LENGTH:
+                    error_payload = {
+                                    'message': MIN_REQUIRED_TEXT_LENGTH_ERROR,
+                                    'error': "Input text requirement - min length"
+                    }
+                    yield f"data: {json.dumps({'type': 'error', 'message': MIN_REQUIRED_TEXT_LENGTH_ERROR, 'error': error_payload})}\n\n"
+                    return
+
+                if len(tosText) > MAX_ALLOWED_TEXT_LENGTH:
+                    error_payload = {
+                                    'message': MAX_ALLOWED_TEXT_LENGTH_ERROR,
+                                    'error': f'Max input length exceeded: ({len(tosText)})'
+                    }
+                    yield f"data: {json.dumps({'type': 'error', 'message': MAX_ALLOWED_TEXT_LENGTH_ERROR, 'error': error_payload})}\n\n"
+                    return
+
+
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n\n"
                 chunks = await parse_and_chunk_file(tosText=tosText)
                 ### totalChunks = store_chunks_in_db(chunks, "Pasted Text")
                 ### print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
             elif file:
+                if file.size is None or file.size > MAX_FILE_SIZE_BYTES:
+                    error_payload = {
+                                'message': f'{MAX_FILE_SIZE_ERROR}',
+                                'error': "Processing Error | Max file size exceeded"
+                    }
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | {MAX_FILE_SIZE_ERROR}', 'error': error_payload})}\n\n"
+                    return
+
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n\n"
-                # print(f"Processing file: {file.filename}...")
                 try:
                     chunks = await parse_and_chunk_file(file=file)
                     ### totalChunks = store_chunks_in_db(chunks, file.filename)
@@ -96,9 +119,12 @@ async def parse_document(
                 print(' * * * * * * * * * * NO RISK FOUND * * * * * * * * * *')
                 yield f"data: {json.dumps({'type': 'no_risks_found', 'content': None})}\n"
             else:
+                print(' * * * * * * * * * * FINAL REPORT * * * * * * * * * *')
+                count = 0
                 for risk in final_report_data:
-                    print(' * * * * * * * * * * FINAL REPORT * * * * * * * * * *')
+                    count += 1
                     yield f"data: {json.dumps({'type': 'risk_item', 'content': risk})}\n\n"
+                print(f' * * * * * * * * * * TOTAL RISKS FOUND: {count}* * * * * * * * * *')
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
