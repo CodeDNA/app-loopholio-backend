@@ -17,9 +17,7 @@ dependencies = [
     "langchain-openai",
     "langchain-google-genai",
     "docling",
-    "chromadb",
     "python-multipart",
-    "sentence-transformers",
 ]
 
 [tool.setuptools.packages.find]

@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated, Optional
 from app.services.file_parser import parse_and_chunk_file
-from app.services.vector_store import store_chunks_in_db
+### from app.services.vector_store import store_chunks_in_db
 from app.agent.tos_graph import build_tos_graph
 from app.agent.tos_agent_states import initial_graph_state
 
