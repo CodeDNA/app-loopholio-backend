@@ -4,6 +4,16 @@ __pycache__/
 .vscode/
 /backups
 .env
+.env.*
+!.env.example
 venv
 chroma_db/
 .vscode/
+.DS_Store
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

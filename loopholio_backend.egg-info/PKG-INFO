@@ -1,9 +1,0 @@
-Metadata-Version: 2.4
-Name: loopholio-backend
-Version: 0.1.0
-Summary: ToS legal risk analysis backend
-Requires-Python: >=3.10
-Requires-Dist: langgraph
-Requires-Dist: fastapi
-Requires-Dist: docling
-Requires-Dist: uvicorn

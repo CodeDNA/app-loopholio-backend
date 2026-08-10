@@ -8,11 +8,20 @@ version = "0.1.0"
 description = "ToS legal risk analysis backend"
 requires-python = ">=3.10"
 dependencies = [
-    "langgraph",
     "fastapi",
+    "uvicorn[standard]",
+    "python-dotenv",
+    "pydantic",
+    "langgraph",
+    "langchain-core",
+    "langchain-openai",
+    "langchain-google-genai",
     "docling",
-    "uvicorn"
+    "chromadb",
+    "python-multipart",
+    "sentence-transformers",
 ]
 
-[tool.setuptools]
-packages = ["app"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
