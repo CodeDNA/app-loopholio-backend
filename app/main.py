@@ -53,19 +53,15 @@ async def parse_document(
                 # print("Processing raw text string...")
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n\n"
                 chunks = await parse_and_chunk_file(tosText=tosText)
-                totalChunks = store_chunks_in_db(chunks, "Pasted Text")
-                print(
-                    f"Successfully generated and stored {totalChunks} chunks in vector db."
-                )
+                ### totalChunks = store_chunks_in_db(chunks, "Pasted Text")
+                ### print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
             elif file:
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n\n"
                 # print(f"Processing file: {file.filename}...")
                 try:
                     chunks = await parse_and_chunk_file(file=file)
-                    totalChunks = store_chunks_in_db(chunks, file.filename)
-                    print(
-                        f"Successfully generated and stored {totalChunks} chunks in vector db."
-                    )
+                    ### totalChunks = store_chunks_in_db(chunks, file.filename)
+                    ### print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
                 except Exception as e:
                     yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': str(e)})}\n\n"
                     raise HTTPException(
