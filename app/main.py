@@ -1,10 +1,9 @@
 import os
-
 os.environ["TORCH_COMPILE_DISABLE"] = "1"
 os.environ["TORCHINDUCTOR_DISABLE"] = "1"
 
 import json
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated, Optional
@@ -12,6 +11,7 @@ from app.services.file_parser import parse_and_chunk_file
 ### from app.services.vector_store import store_chunks_in_db
 from app.agent.tos_graph import build_tos_graph
 from app.agent.tos_agent_states import initial_graph_state
+from app.services.rate_limiter import remove_analysis_lock, can_process
 from app.constants.constants import MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_ERROR, MIN_REQUIRED_TEXT_LENGTH, MIN_REQUIRED_TEXT_LENGTH_ERROR, MAX_ALLOWED_TEXT_LENGTH, MAX_ALLOWED_TEXT_LENGTH_ERROR, MAX_SECTIONS_ALLOWED_PER_DOCUMENT
 
 app = FastAPI(title="Terms Of Service Risk Analyzer")
@@ -46,9 +46,10 @@ It retuns a list of dictionary - list of potential risk items present in the leg
 async def parse_document(
     file: Annotated[Optional[UploadFile], File()] = None,
     tosText: Annotated[Optional[str], Form()] = None,
+    request: Request = None,
 ):
-    print(f"Received tosText: {tosText}")
-    print(f"Received file: {file.filename if file else 'None'}")
+    # print(f"Received tosText: {tosText}")
+    # print(f"Received file: {file.filename if file else 'None'}")
 
     async def event_generator():
         try:
@@ -61,6 +62,14 @@ async def parse_document(
             # yield f"data: {json.dumps({'type': 'error', 'message': f'Error: Something went wrong', 'error': error})}\n\n"
             # return
             ##############
+            result = can_process(request)
+            if not result["allow"]:
+                error_payload = {
+                                'message': f'{result['message']}. Please try again after some time.',
+                                'error': "API Rate Limit - too many requests."
+                }
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
+                return
             
             yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Starting document parsing and chunking...'})}\n\n"
 
@@ -167,6 +176,9 @@ async def parse_document(
             yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | Something went wrong: {str(e)}', 'error': 
             error_payload})}\n\n"
             return
+        finally:
+            # Remove analysis lock when current analysis finishes or an exception is caught
+            remove_analysis_lock(request)
             
 
     return StreamingResponse(
