@@ -1,10 +1,11 @@
 import os
 from upstash_redis import Redis
-from fastapi import Request
+from fastapi import Request, HTTPException
 from app.constants.constants import MAX_ANALYSIS_PER_HOUR_PER_IP, MAX_ANALYSIS_PER_DAY_PER_IP
 
 URL = os.environ["UPSTASH_REDIS_REST_URL"]
 TOKEN = os.environ["UPSTASH_REDIS_REST_TOKEN"]
+PROXY_SECRET = os.environ["LOOPHOLIO_PROXY_SECRET"]
 redis_client = Redis(url=URL, token=TOKEN)
 
 # TTL IN SECONDS
@@ -16,10 +17,16 @@ identifier_hour = f'loopholio:analysis:hour'
 identifier_day = f'loopholio:analysis:day'
 
 def getclientIp(request: Request) -> str:
-    x_forwarded_for = request.headers.get("x-forwarded-for")
-    if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
-    return request.client.host
+    proxy_secret_client = request.headers.get("x-loopholio-proxy-secret")
+    if proxy_secret_client != PROXY_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    client_ip = request.headers.get("x-loopholio-client-ip")
+
+    if not client_ip:
+        raise HTTPException(status_code=400, detail="Client IP missing")
+
+    return client_ip.strip()
 
 def can_process(request: Request):
     client_ip = getclientIp(request)
