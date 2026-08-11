@@ -19,7 +19,10 @@ app = FastAPI(title="Terms Of Service Risk Analyzer")
 # Whitelisting local UI
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # change if needed
+    allow_origins=[
+        "http://localhost:3000",
+        "https://loopholio.codedna.io"
+        ],  # change if needed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
