@@ -69,7 +69,7 @@ async def parse_document(
             if not result["allow"]:
                 error_payload = {
                                 'message': f'{result['message']}. Please try again after some time.',
-                                'error': "API Rate Limit - too many requests."
+                                'error': "API Rate Limit - Too Many Requests."
                 }
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
                 return
