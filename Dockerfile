@@ -2,13 +2,18 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Copy dependency/package metadata first.
 COPY pyproject.toml ./
+COPY app/__init__.py ./app/__init__.py
 
-COPY app ./app
-
-RUN pip install --no-cache-dir \
+# Install Python dependencies.
+RUN python -m pip install \
+    --no-cache-dir \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     .
+
+# Copy application source
+COPY app ./app
 
 ENV PORT=8080
 

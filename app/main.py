@@ -51,8 +51,8 @@ async def parse_document(
     tosText: Annotated[Optional[str], Form()] = None,
     request: Request = None,
 ):
-    # print(f"Received tosText: {tosText}")
-    # print(f"Received file: {file.filename if file else 'None'}")
+    print(f"Received tosText: {tosText}")
+    print(f"Received file: {file.filename if file else 'None'}")
 
     async def event_generator():
         try:
