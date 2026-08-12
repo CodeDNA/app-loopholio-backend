@@ -103,7 +103,7 @@ async def parse_document(
                     }
                     yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
                     return
-                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text...'})}\n\n"
                 chunks = await parse_and_chunk_file(tosText=tosText)
                 if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
                     error_payload = {
@@ -131,7 +131,7 @@ async def parse_document(
                     yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
                     return
 
-                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file...'})}\n\n"
                 try:
                     chunks = await parse_and_chunk_file(file=file)
                     if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
@@ -150,10 +150,10 @@ async def parse_document(
                         detail=f"Processing Error | Something went wrong: {str(e)}",
                     )
             else:
-                yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': 'No text or file provided.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'status', 'status': 'error', 'message': 'No text or file provided!'})}\n\n"
                 return
 
-            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Executing legal risk analysis agent pipeline.'})}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Executing agent pipeline...'})}\n\n"
 
             final_report_data = []
             graph = build_tos_graph()
