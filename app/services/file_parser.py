@@ -45,7 +45,7 @@ async def parse_and_chunk_file(file=None, tosText: str = "") -> list[dict]:
             headings = (
                 getattr(chunk.meta, "headings", []) if hasattr(chunk, "meta") else []
             )
-            section_title = headings[0] if headings else "User pasted text"
+            section_title = headings[0] if headings else ""
             chunk_id = f"chunk_00{index}"
             chunks.append(
                 {
