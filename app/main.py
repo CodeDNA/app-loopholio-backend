@@ -65,16 +65,16 @@ async def parse_document(
             # yield f"data: {json.dumps({'type': 'error', 'message': f'Error: Something went wrong', 'error': error})}\n\n"
             # return
             ##############
-            result = can_process(request)
-            if not result["allow"]:
-                error_payload = {
-                                'message': f'{result['message']}. Please try again after some time.',
-                                'error': "API Rate Limit - Too Many Requests."
-                }
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
-                return
+            # result = can_process(request)
+            # if not result["allow"]:
+            #     error_payload = {
+            #                     'message': f'{result['message']}. Please try again after some time.',
+            #                     'error': "API Rate Limit - Too Many Requests."
+            #     }
+            #     yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
+            #     return
             
-            yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Starting document parsing and chunking...'})}\n\n"
+            # yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Parsing document...'})}\n\n"
 
             chunks = []
             if tosText and tosText:
@@ -95,7 +95,14 @@ async def parse_document(
                     yield f"data: {json.dumps({'type': 'error', 'message': MAX_ALLOWED_TEXT_LENGTH_ERROR, 'error': error_payload})}\n\n"
                     return
 
-
+                result = can_process(request)
+                if not result["allow"]:
+                    error_payload = {
+                                    'message': f'{result['message']}. Please try again after some time.',
+                                    'error': "API Rate Limit - Too Many Requests."
+                    }
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
+                    return
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text.'})}\n\n"
                 chunks = await parse_and_chunk_file(tosText=tosText)
                 if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
@@ -114,6 +121,14 @@ async def parse_document(
                                 'error': "Processing Error | Max file size exceeded"
                     }
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | {MAX_FILE_SIZE_ERROR}', 'error': error_payload})}\n\n"
+                    return
+                result = can_process(request)
+                if not result["allow"]:
+                    error_payload = {
+                                    'message': f'{result['message']}. Please try again after some time.',
+                                    'error': "API Rate Limit - Too Many Requests."
+                    }
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
                     return
 
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file.'})}\n\n"
