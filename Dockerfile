@@ -7,10 +7,7 @@ COPY pyproject.toml ./
 COPY app/__init__.py ./app/__init__.py
 
 # Install Python dependencies.
-RUN python -m pip install \
-    --no-cache-dir \
-    --extra-index-url https://download.pytorch.org/whl/cpu \
-    .
+RUN python -m pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu .
 
 # Copy application source
 COPY app ./app

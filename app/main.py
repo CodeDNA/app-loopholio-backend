@@ -177,12 +177,12 @@ async def parse_document(
                 print(' * * * * * * * * * * NO RISK FOUND * * * * * * * * * *')
                 yield f"data: {json.dumps({'type': 'no_risks_found', 'content': None})}\n"
             else:
-                print(' * * * * * * * * * * FINAL REPORT * * * * * * * * * *')
+                print(' * * * * * * * * * * GENERATING FINAL REPORT * * * * * * * * * *')
                 count = 0
                 for risk in final_report_data:
                     count += 1
                     yield f"data: {json.dumps({'type': 'risk_item', 'content': risk})}\n\n"
-                print(f' * * * * * * * * * * TOTAL RISKS FOUND: {count}* * * * * * * * * *')
+                print(f' * * * * * * * * * * TOTAL RISKS FOUND: {count} * * * * * * * * * *')
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
