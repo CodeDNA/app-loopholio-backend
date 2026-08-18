@@ -49,10 +49,12 @@ It retuns a list of dictionary - list of potential risk items present in the leg
 async def parse_document(
     file: Annotated[Optional[UploadFile], File()] = None,
     tosText: Annotated[Optional[str], Form()] = None,
-    isURL: Annotated[Optional[str], Form()] = None,
+    isURL: Annotated[Optional[str], Form()] = 'false',
     request: Request = None,
 ):
-
+    # print("isURL: ", isURL)
+    # print(f"Received file: {file.filename if file else 'None'}")
+    # print("text: ", tosText)
     async def event_generator():
         try:
             chunks = []
@@ -83,7 +85,8 @@ async def parse_document(
                     yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
                     return
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text...'})}\n\n"
-                chunks = await parse_and_chunk_file(tosText=tosText)
+                chunks = await parse_and_chunk_file(tosText=tosText, isURl=isURL)
+                # print("chunks.length: ", len(chunks))
                 if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
                     error_payload = {
                                     'message': f'Too many sections present in the provided document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}',
@@ -112,7 +115,8 @@ async def parse_document(
 
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your file...'})}\n\n"
                 try:
-                    chunks = await parse_and_chunk_file(file=file)
+                    chunks = await parse_and_chunk_file(file=file, isURl=isURL)
+                    # print("chunks.length: ", len(chunks))
                     if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
                         error_payload = {
                                         'message': f'Too many sections present in the provided document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}',
