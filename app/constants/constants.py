@@ -5,7 +5,7 @@ MAX_FILE_SIZE_MB = 5 # max allowed document file size(Mb)
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024 # max allowed document file size(bytes)
 MIN_REQUIRED_TEXT_LENGTH = 100 # min required length for tosText
 MAX_ALLOWED_TEXT_LENGTH = 50000 # max allowed length for tosText
-MAX_SECTIONS_ALLOWED_PER_DOCUMENT = 25 # max chunk limit: to prevent too many llm calls during fanouts
+MAX_SECTIONS_ALLOWED_PER_DOCUMENT = 50 # max chunk limit: to prevent too many llm calls during fanouts
 
 # API RATE LIMITS
 MAX_ANALYSIS_PER_HOUR_PER_IP = 2
