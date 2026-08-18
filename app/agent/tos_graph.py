@@ -32,6 +32,7 @@ async def clause_extraction_node(state: dict) -> ToSAgentState:
     section_title = section["section_title"]
     section_text = section["section_text"]
     chunk_id = section["chunk_id"]
+    section_context = section["section_context"]
 
     clause_extraction_llm_input = {
         "section_title": section_title,
@@ -59,6 +60,7 @@ async def clause_extraction_node(state: dict) -> ToSAgentState:
                 "clause_type": clause.clause_type,
                 "clause_text": clause.clause_text,
                 "section_title": section_title,
+                "section_context": section_context,
                 "source_text": section_text,
             }
             for index, clause in enumerate(extracted_clauses.clauses)
@@ -93,6 +95,7 @@ async def risk_detection_node(state: dict) -> ToSAgentState:
     clause_text = clause_to_analyze["clause_text"]
     clause_type = clause_to_analyze["clause_type"]
     source_text = clause_to_analyze["source_text"]
+    section_context = clause_to_analyze["section_context"]
     clause_id = clause_to_analyze["clause_id"]
     chunk_id = clause_to_analyze["chunk_id"]
 
@@ -102,7 +105,7 @@ async def risk_detection_node(state: dict) -> ToSAgentState:
         "section_title": section_title,
         "clause_type": clause_type,
         "clause_text": clause_text,
-        "source_text": source_text,
+        "section_context": section_context,
     }
 
     detected_risk = await structured_llm.ainvoke(
