@@ -49,37 +49,16 @@ It retuns a list of dictionary - list of potential risk items present in the leg
 async def parse_document(
     file: Annotated[Optional[UploadFile], File()] = None,
     tosText: Annotated[Optional[str], Form()] = None,
+    isURL: Annotated[Optional[str], Form()] = None,
     request: Request = None,
 ):
-    # print(f"Received tosText: {tosText}")
-    # print(f"Received file: {file.filename if file else 'None'}")
 
     async def event_generator():
         try:
-            ##############
-            # DUMMY ERROR FOR TESTING
-            # error = {
-            #          'message': f'Processing Error | Something went wrong',
-            #          'error': "API ERROR TEST"  # Sends "ValueError", "KeyError", etc., safely
-            # }
-            # yield f"data: {json.dumps({'type': 'error', 'message': f'Error: Something went wrong', 'error': error})}\n\n"
-            # return
-            ##############
-            # result = can_process(request)
-            # if not result["allow"]:
-            #     error_payload = {
-            #                     'message': f'{result['message']}. Please try again after some time.',
-            #                     'error': "API Rate Limit - Too Many Requests."
-            #     }
-            #     yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
-            #     return
-            
-            # yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Parsing document...'})}\n\n"
-
             chunks = []
             if tosText and tosText:
                 # print("Processing raw text string...")
-                if len(tosText) < MIN_REQUIRED_TEXT_LENGTH:
+                if not isURL and len(tosText) < MIN_REQUIRED_TEXT_LENGTH:
                     error_payload = {
                                     'message': MIN_REQUIRED_TEXT_LENGTH_ERROR,
                                     'error': "Input text requirement - min length"
