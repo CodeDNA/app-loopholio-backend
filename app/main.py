@@ -6,7 +6,7 @@ import json
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Any
 from app.services.file_parser import parse_and_chunk_file
 ### from app.services.vector_store import store_chunks_in_db
 from app.agent.tos_graph import build_tos_graph
@@ -61,55 +61,41 @@ async def parse_document(
             if tosText and tosText:
                 # print("Processing raw text string...")
                 if not isURL and len(tosText) < MIN_REQUIRED_TEXT_LENGTH:
-                    error_payload = {
-                                    'message': MIN_REQUIRED_TEXT_LENGTH_ERROR,
-                                    'error': "Input text requirement - min length"
-                    }
+                    error_payload = getErrorPayload(MIN_REQUIRED_TEXT_LENGTH_ERROR, "Input text requirement - min length")
                     yield f"data: {json.dumps({'type': 'error', 'message': MIN_REQUIRED_TEXT_LENGTH_ERROR, 'error': error_payload})}\n\n"
                     return
 
                 if len(tosText) > MAX_ALLOWED_TEXT_LENGTH:
-                    error_payload = {
-                                    'message': MAX_ALLOWED_TEXT_LENGTH_ERROR,
-                                    'error': f'Max input length exceeded: ({len(tosText)})'
-                    }
+                    error_payload = getErrorPayload(MAX_ALLOWED_TEXT_LENGTH_ERROR, f'Max input length exceeded: {len(tosText)}')
                     yield f"data: {json.dumps({'type': 'error', 'message': MAX_ALLOWED_TEXT_LENGTH_ERROR, 'error': error_payload})}\n\n"
                     return
 
                 result = can_process(request)
                 if not result["allow"]:
-                    error_payload = {
-                                    'message': f'{result['message']}. Please try again after some time.',
-                                    'error': "API Rate Limit - Too Many Requests."
-                    }
+                    error_payload = getErrorPayload(f'{result['message']}. Please try again after some time.', "API Rate Limit - Too Many Requests.")
                     yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
                     return
+                
                 yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Processing your text...'})}\n\n"
+
                 chunks = await parse_and_chunk_file(tosText=tosText, isURl=isURL)
                 # print("chunks.length: ", len(chunks))
                 if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
-                    error_payload = {
-                                    'message': f'Too many sections present in the provided document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}',
-                                    'error': f"Too many sections in the document ({len(chunks)})"
-                    }
+                    error_payload = getErrorPayload(f'Too many sections present in the provided document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}', f'Too many sections in the document ({len(chunks)})')
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | Too many sections/pages in the document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}', 'error': error_payload})}\n\n"
                     return
+                
                 ### totalChunks = store_chunks_in_db(chunks, "Pasted Text")
                 ### print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
             elif file:
                 if file.size is None or file.size > MAX_FILE_SIZE_BYTES:
-                    error_payload = {
-                                'message': f'{MAX_FILE_SIZE_ERROR}',
-                                'error': "Processing Error | Max file size exceeded"
-                    }
+                    error_payload = getErrorPayload(f'{MAX_FILE_SIZE_ERROR}', "Processing Error | Max file size exceeded")
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | {MAX_FILE_SIZE_ERROR}', 'error': error_payload})}\n\n"
                     return
+                
                 result = can_process(request)
                 if not result["allow"]:
-                    error_payload = {
-                                    'message': f'{result['message']}. Please try again after some time.',
-                                    'error': "API Rate Limit - Too Many Requests."
-                    }
+                    error_payload = getErrorPayload(f'{result['message']}. Please try again after some time.', "API Rate Limit - Too Many Requests.")
                     yield f"data: {json.dumps({'type': 'error', 'message': 'Too many requests. Please try again after some time.', 'error': error_payload})}\n\n"
                     return
 
@@ -118,12 +104,10 @@ async def parse_document(
                     chunks = await parse_and_chunk_file(file=file, isURl=isURL)
                     # print("chunks.length: ", len(chunks))
                     if len(chunks) > MAX_SECTIONS_ALLOWED_PER_DOCUMENT:
-                        error_payload = {
-                                        'message': f'Too many sections present in the provided document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}',
-                                        'error': f"Too many sections in the document ({len(chunks)})"
-                        }
+                        error_payload = getErrorPayload(f'Too many sections present in the provided document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}', f"Too many sections in the document ({len(chunks)})")
                         yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | Too many sections/pages in the document. Max sections allowed per document: {MAX_SECTIONS_ALLOWED_PER_DOCUMENT}', 'error': error_payload})}\n\n"
                         return
+                    
                     ### totalChunks = store_chunks_in_db(chunks, file.filename)
                     ### print(f"Successfully generated and stored {totalChunks} chunks in vector db.")
                 except Exception as e:
@@ -170,13 +154,11 @@ async def parse_document(
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
         except Exception as e:
-            error_payload = {
-                'message': f'Processing Error | Something went wrong: {str(e)}',
-                'error': type(e).__name__  #"ValueError", "KeyError", etc., safely
-            }
+            error_payload = getErrorPayload(f'Processing Error | Something went wrong: {str(e)}', type(e).__name__) #"ValueError", "KeyError"
             yield f"data: {json.dumps({'type': 'error', 'message': f'Processing Error | Something went wrong: {str(e)}', 'error': 
             error_payload})}\n\n"
             return
+        
         finally:
             # Remove analysis lock when current analysis finishes or an exception is caught
             remove_analysis_lock(request)
@@ -191,3 +173,10 @@ async def parse_document(
             "Connection": "keep-alive",
         },
     )
+
+def getErrorPayload(message: str, error: Any):
+    error_payload = {
+                    'message': message,
+                    'error': error
+    }
+    return error_payload
