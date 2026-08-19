@@ -130,13 +130,13 @@ async def parse_document(
             async for event in graph.astream(initial_state, stream_mode="updates", config={'max_concurrency': 2}):
                 for node_name, node_output in event.items():
                     if node_name == "clause_extraction":
-                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Extracting clauses..."})}\n\n"
+                        yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Extracting clauses...'})}\n\n"
                     elif node_name == "risk_detection":
-                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Analyzing Risks..."})}\n\n"
+                        yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Analyzing Risks...'})}\n\n"
                     elif node_name == "explainer":
-                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Generating explanations..."})}\n\n"
+                        yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Generating explanations...'})}\n\n"
                     elif node_name == "report_generator":
-                        yield f"data: {json.dumps({'type': 'status', "status": "processing", "message": "Preparing Report..."})}\n\n"
+                        yield f"data: {json.dumps({'type': 'status', 'status': 'processing', 'message': 'Preparing Report...'})}\n\n"
                         final_report_data = node_output.get("final_report", [])
 
             # Stream each risk item individually to match front end contract

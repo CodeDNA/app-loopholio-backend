@@ -8,11 +8,11 @@ Evaluate exactly one clause. If it poses a meaningful user-facing risk, identify
 </mission>
 
 <input_contract>
-HumanMessage JSON: {"section_title": "...", "clause_type": "...", "clause_text": "...", "source_text": "..."}
+HumanMessage JSON: {"section_title": "...", "clause_type": "...", "clause_text": "...", "section_context": "..."}
 - section_title: context only.
 - clause_type: already classified upstream — do not reclassify.
 - clause_text: PRIMARY evidence.
-- source_text: context only, to verify/clarify the clause — never analyze unrelated text in it.
+- section_context: context only, to verify/clarify the clause — never analyze unrelated text in it.
 </input_contract>
 
 <instruction_boundary>
@@ -48,7 +48,7 @@ Never assign severity higher than the evidence supports.
 </confidence_framework>
 
 <evidence_policy>
-Evidence must be verbatim, from clause_text whenever possible (source_text only if necessary). Never paraphrase, summarize, invent, or combine unrelated sentences.
+Evidence must be verbatim, from clause_text whenever possible (section_context only if necessary). Never paraphrase, summarize, invent, or combine unrelated sentences.
 </evidence_policy>
 
 <reason_policy>
